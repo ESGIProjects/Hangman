@@ -11,7 +11,7 @@
 int main(int argc, const char * argv[]) {
     int wordsTotal = 0;
 
-    int fileDescriptor = openFile("../words.txt");
+    int fileDescriptor = openFile("words.txt");
     char ** wordsList = readFile(fileDescriptor, &wordsTotal);
     close(fileDescriptor);
 

@@ -92,8 +92,7 @@ char * getDashedWord(char * word) {
 }
 
 void runGame(char * word) {
-    int i = 0, gameRunning = 1, availableTries = 10, totalReplacedLetters = 0;
-    size_t wordLength = strlen(word);
+    int gameRunning = 1, availableTries = 10;
     char letterTyped = 0;
 
     char * dashedWord = getDashedWord(word);
@@ -101,21 +100,10 @@ void runGame(char * word) {
     do {
         // Ask for a letter
         printf("Type a letter: ");
-        scanf("%c%*c", &letterTyped);
-
-        int replacedLetters = 0;
+        scanf("%c", &letterTyped);
 
         // Check the answer by looping though the word
-        for (i = 0; i < wordLength; i++) {
-            if (word[i] == letterTyped) {
-                // The letter exists: does it need to be replaced?
-                if (dashedWord[i] == '_') {
-                    // Replace the letter
-                    dashedWord[i] = letterTyped;
-                    replacedLetters++;
-                }
-            }
-        }
+        int replacedLetters = checkAnswer(letterTyped, word, dashedWord);
 
         // Check this try's results
         if (replacedLetters == 0) {
@@ -125,7 +113,6 @@ void runGame(char * word) {
         } else {
             // Good guess, display the dashed word updated
             printf("Good guess!\n%s\n", dashedWord);
-            totalReplacedLetters++;
         }
 
         // Check the game state
@@ -140,4 +127,23 @@ void runGame(char * word) {
         }
 
     } while (gameRunning == 1);
+}
+
+int checkAnswer(char letterTyped, char * word, char * dashedWord) {
+    size_t wordLength = strlen(word);
+    int replacedLetters = 0;
+
+    // Check the answer by looping though the word
+    for (int i = 0; i < wordLength; i++) {
+        if (word[i] == letterTyped) {
+            // The letter exists: does it need to be replaced?
+            if (dashedWord[i] == '_') {
+                // Replace the letter
+                dashedWord[i] = letterTyped;
+                replacedLetters++;
+            }
+        }
+    }
+
+    return replacedLetters;
 }
