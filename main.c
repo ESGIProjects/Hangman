@@ -9,7 +9,7 @@
 #include "hangman.h"
 
 int main(int argc, const char * argv[]) {
-    int wordsTotal = 0;
+   int wordsTotal = 0;
 
     int fileDescriptor = openFile("words.txt");
     char ** wordsList = readFile(fileDescriptor, &wordsTotal);

@@ -12,7 +12,7 @@
 
 int main(int argc, const char * argv[]) {
 
-    int i = 0, j = 0;
+    int i = 0;
 
     // Variables relatives à la récupération des mots
     int wordsTotal = 0, wordsFileDescriptor;
@@ -24,7 +24,7 @@ int main(int argc, const char * argv[]) {
     struct sockaddr_in serverInfo;
 
     // Variables relatives à la concurrence du serveur
-    int maxSocket, sockets[10], socketsCount;
+    int maxSocket, * sockets, socketsCount;
     fd_set readFS;
 
     // Variables relatives au jeu
@@ -37,7 +37,7 @@ int main(int argc, const char * argv[]) {
 
 
     // Récupération des mots
-    wordsFileDescriptor = openFile("words.txt");
+    wordsFileDescriptor = openFile("../words.txt");
     wordsList = readFile(wordsFileDescriptor, &wordsTotal);
     close(wordsFileDescriptor);
 
@@ -47,7 +47,7 @@ int main(int argc, const char * argv[]) {
 
     serverInfo.sin_family = AF_INET;
     serverInfo.sin_addr.s_addr = htons(INADDR_ANY);
-    serverInfo.sin_port = htons(7777);
+    serverInfo.sin_port = htons(7779);
 
     bind(listenFileDescriptor, (struct sockaddr*) &serverInfo, sizeof(serverInfo));
 
@@ -62,8 +62,9 @@ int main(int argc, const char * argv[]) {
     // Concurrence
 
     maxSocket = listenFileDescriptor + 1;
-    sockets[0] = listenFileDescriptor;
     socketsCount = 1;
+    sockets = (int*) malloc(10 * sizeof(int));
+    sockets[0] = listenFileDescriptor;
 
     while (1) {
 
@@ -81,15 +82,19 @@ int main(int argc, const char * argv[]) {
             // Connexion acceptée et ajoutée aux autres
             connectFileDescriptor = acceptConnection(listenFileDescriptor);
             maxSocket = connectFileDescriptor + 1;
+            sockets = (int *) realloc(sockets, (socketsCount+1) * sizeof(int));
             sockets[socketsCount] = connectFileDescriptor;
 
             // Mise en place de la partie
-            selectedWords[socketsCount] = wordsList[randomNumber(0, wordsTotal)];
+            int random = randomNumber(0, wordsTotal);
+            selectedWords[socketsCount] = wordsList[random];
+            printf("random number : %d\n", random);
             dashedWords[socketsCount] = getDashedWord(selectedWords[socketsCount]);
             availableTries[socketsCount] = 10;
 
             // On envoie le mot caché au client
-            strcpy(writeBuffer, dashedWords[socketsCount]);
+            strcpy(writeBuffer, "4");
+            strcat(writeBuffer, dashedWords[socketsCount]);
             write(connectFileDescriptor, writeBuffer, sizeof(writeBuffer));
 
             // On incrémente enfin le nombre de connexions conservées
@@ -104,15 +109,57 @@ int main(int argc, const char * argv[]) {
             if (FD_ISSET(sockets[i], &readFS)) {
 
                 // Réception
-                recv(sockets[i], readBuffer, 100, 0);
+                read(sockets[i], readBuffer, sizeof(readBuffer));
 
                 // On conserve seulement le premier caractère
                 char letterTyped = readBuffer[0];
                 int replacedLetters = checkAnswer(letterTyped, selectedWords[i], dashedWords[i]);
 
+                // 0 False answer
+                // 1 Good answer
+                // 2 Game Over (lost)
+                // 3 Game Over (won)
+                // 4 Start Game
+
+                if (replacedLetters == 0) {
+                    // Wrong guess
+                    if (availableTries[i] > 0) {
+                        // Wrong guess but not over
+                        strcpy(writeBuffer, "0");
+                        availableTries[i]--;
+                    } else {
+                        // Game over
+                        strcpy(writeBuffer, "2");
+                    }
+                } else {
+                    // Good guess
+                    if (strcmp(dashedWords[i], selectedWords[i]) == 0) {
+                        // Player won
+                        strcpy(writeBuffer, "3");
+                    }
+                    else {
+                        // Good guess but not over
+                        strcpy(writeBuffer, "1");
+                    }
+                }
+
+                // Ajout du mot au buffer
+                strcat(writeBuffer, dashedWords[i]);
+
                 // Réponse au client
-                strcpy(writeBuffer, dashedWords[i]);
+                printf("%s\n", writeBuffer);
                 write(sockets[i], writeBuffer, sizeof(writeBuffer));
+
+                // On vérifie si le jeu est terminé
+                if (writeBuffer[0] == '2' || writeBuffer[0] == '3') {
+                    printf("CLOSE\n");
+                    close(sockets[i]);
+                    availableTries[i] = 10;
+                    selectedWords[i] = NULL;
+                    dashedWords[i] = NULL;
+
+                    deleteIntegerFromArray(&sockets, &socketsCount, i);
+                }
             }
         }
     }
