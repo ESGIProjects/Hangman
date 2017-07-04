@@ -7,8 +7,8 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include "hangman.h"
-#include "helper.h"
+#include "libs/hangman.h"
+#include "libs/helper.h"
 
 int main(int argc, const char * argv[]) {
 

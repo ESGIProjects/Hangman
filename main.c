@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
-#include "hangman.h"
+#include "libs/hangman.h"
 
 int main(int argc, const char * argv[]) {
    int wordsTotal = 0;
