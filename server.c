@@ -37,7 +37,7 @@ int main(int argc, const char * argv[]) {
 
 
     // Récupération des mots
-    wordsFileDescriptor = openFile("../words.txt");
+    wordsFileDescriptor = openFile("words.txt");
     wordsList = readFile(wordsFileDescriptor, &wordsTotal);
     close(wordsFileDescriptor);
 
