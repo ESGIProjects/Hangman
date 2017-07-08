@@ -1,13 +1,19 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 #include "libs/helper.h"
+
+int listenFileDescriptor;
+
+void closeFromUser(int);
 
 int main (int argc, const char * argv[]) {
 
     // Variables relatives aux informations du serveur
-    int listenFileDescriptor, maxSocket;
+    int maxSocket;
     char readBuffer[100], writeBuffer[100], word[100], state = 0;
     fd_set readFS;
 
@@ -16,6 +22,9 @@ int main (int argc, const char * argv[]) {
 
     // Connexion au serveur
     connectServer(listenFileDescriptor, "127.0.0.1", PORT);
+
+    // Permet la fermeture propre si la partie n'est pas terminée
+    signal(SIGINT, closeFromUser);
 
     maxSocket = listenFileDescriptor + 1;
 
@@ -41,7 +50,7 @@ int main (int argc, const char * argv[]) {
             } else if (state == '1') {
                 printf("Good guess!\n");
             } else if (state == '2') {
-                printf("You lost! The word was (TO BE COMPLETED)\n", word);
+                printf("You lost! The word was (TO BE COMPLETED)\n");
             } else if (state == '3') {
                 printf("You won, good job!\n");
             } else if (state == '4') {
@@ -61,4 +70,9 @@ int main (int argc, const char * argv[]) {
             }
         }
     }
+}
+
+void closeFromUser(int signal) {
+    close(listenFileDescriptor);
+    exit(0);
 }

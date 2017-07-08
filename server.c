@@ -12,6 +12,9 @@
 #include "libs/hangman.h"
 #include "libs/helper.h"
 
+#define MAX_SOCKETS_PER_THREAD 5
+#define MAX_THREADS 10
+
 typedef struct {
     pthread_t thread;
     int * sockets;
@@ -42,7 +45,20 @@ void * gameThread(void * args) {
         for (i = 0; i < thread->socketsCount; i++) {
             if (FD_ISSET(thread->sockets[i], &readFS)) {
                 // Réception
-                read(thread->sockets[i], readBuffer, sizeof(readBuffer));
+                ssize_t readValue = read(thread->sockets[i], readBuffer, sizeof(readBuffer));
+
+                if (readValue == 0) {
+                    printf("Socket closed by client\n");
+                    close(thread->sockets[i]);
+                    removeInteger(thread->sockets, i, thread->socketsCount);
+                    removeInteger(thread->availableTries, i, thread->socketsCount);
+                    removeString(thread->selectedWords, i, thread->socketsCount);
+                    removeString(thread->dashedWords, i, thread->socketsCount);
+
+                    thread->socketsCount--;
+
+                    continue;
+                }
 
                 // On conserve seulement le premier caractère
                 char letterTyped = readBuffer[0];
@@ -103,6 +119,10 @@ int main(int argc, const char * argv[]) {
 
     int i = 0;
 
+    threadArgs * threads;
+    threads = (threadArgs *) malloc(MAX_THREADS * sizeof(threadArgs));
+    int threadsCount = 0;
+
     // Variables relatives à la récupération des mots
     int wordsTotal = 0, wordsFileDescriptor;
     char ** wordsList;
@@ -157,45 +177,74 @@ int main(int argc, const char * argv[]) {
 
         // Mise en place de l'écoute concurrente
         FD_ZERO(&readFS);
-        for (i = 0; i < socketsCount; i++) {
-            FD_SET(sockets[i], &readFS);
-        }
+        //for (i = 0; i < socketsCount; i++) {
+            FD_SET(listenFileDescriptor, &readFS);
+        //}
 
         select(maxSocket, &readFS, NULL, NULL, NULL);
 
         // Nouvelle connexion
-        if (FD_ISSET(sockets[0], &readFS)) {
+        if (FD_ISSET(listenFileDescriptor, &readFS)) {
             // Connexion acceptée et ajoutée aux autres
 
+            printf("NEW CONNECTION !!!! \n");
+
+            // 1. Sélection d'un thread
+            threadArgs *thread = NULL;
+            int isCreating;
+
+            for (i = 0; i < threadsCount; i++) {
+                if (threads[i].socketsCount < MAX_SOCKETS_PER_THREAD) {
+                    printf("adding to thread %d\n", i);
+//                    thread = &(threads[i]);
+                    isCreating = 0;
+                }
+            }
+//
+            if (thread == NULL) {
+                thread = malloc(sizeof(threadArgs));
+                printf("creating thread %d\n", threadsCount);
+                isCreating = 1;
+                (*thread).sockets = (int*) malloc(MAX_SOCKETS_PER_THREAD * sizeof(int));
+                (*thread).socketsCount = 0;
+            }
+//
             connectFileDescriptor = acceptConnection(listenFileDescriptor);
             maxSocket = connectFileDescriptor + 1;
-
-            threadArgs *thread;
-            thread = malloc(sizeof(threadArgs));
-            (*thread).sockets = (int*) malloc(5 * sizeof(int));
-            (*thread).sockets[0] = connectFileDescriptor;
-            (*thread).socketsCount = 0;
-
-
-            //sockets = (int *) realloc(sockets, (socketsCount+1) * sizeof(int));
-            //sockets[socketsCount] = connectFileDescriptor;
-
-            // Mise en place de la partie
+//
+//            //threadArgs *thread;
+//
+            (*thread).sockets[(*thread).socketsCount] = connectFileDescriptor;
+//
+//
+//            //sockets = (int *) realloc(sockets, (socketsCount+1) * sizeof(int));
+//            //sockets[socketsCount] = connectFileDescriptor;
+//
+//            // Mise en place de la partie
             int random = randomNumber(0, wordsTotal);
             (*thread).selectedWords[(*thread).socketsCount] = wordsList[random];
             printf("random number : %d\n", random);
             (*thread).dashedWords[(*thread).socketsCount] = getDashedWord((*thread).selectedWords[(*thread).socketsCount]);
             (*thread).availableTries[(*thread).socketsCount] = 10;
-
-            // On envoie le mot caché au client
+//
+//            // On envoie le mot caché au client
             strcpy(writeBuffer, "4");
             strcat(writeBuffer, (*thread).dashedWords[(*thread).socketsCount]);
             write(connectFileDescriptor, writeBuffer, sizeof(writeBuffer));
-
-            // On incrémente enfin le nombre de connexions conservées
+//
+//            // On incrémente enfin le nombre de connexions conservées
             (*thread).socketsCount++;
+//
+            if (isCreating == 1) {
+                printf("Starting new thread\n");
+                pthread_create(&((*thread).thread), NULL, gameThread, (void *) thread);
+//                pthread_join((*thread).thread, NULL); // NE MARCHE PLUS AVEC
+                threads[threadsCount++] = *thread;
+            }
 
-            pthread_create(&((*thread).thread), NULL, gameThread, (void *) thread);
+            // DEBUG : on affiche tous les threads
+            for (i = 0; i < threadsCount; i++)
+                printf("threads list %d\n", threads[i]);
         }
 
 

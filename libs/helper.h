@@ -1,7 +1,7 @@
 //
 // Created by Jason Pierna on 13/04/2017.
 //
-#define PORT 7777
+#define PORT 7778
 
 int acceptConnection(int fileDescriptor);
 int connectServer(int fileDescriptor, char * serverAddress, int port);
