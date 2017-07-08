@@ -8,17 +8,65 @@
 #include <time.h>
 #include "libs/hangman.h"
 
+//int main(int argc, const char * argv[]) {
+//   int wordsTotal = 0;
+//
+//    int fileDescriptor = openFile("words.txt");
+//    char ** wordsList = readFile(fileDescriptor, &wordsTotal);
+//    close(fileDescriptor);
+//
+//    srand((unsigned int) time(NULL));
+//    char * selectedWord = wordsList[randomNumber(0, wordsTotal)];
+//
+//    runGame(selectedWord);
+//
+//    return 0;
+//}
+
+void removeInteger(int *array, int index, int arrayLength) {
+    int i;
+    for (i = index; i < arrayLength - 1; i++) array[i] = array[i + 1];
+}
+
+void removeString(char **array, int index, int arrayLength) {
+    int i;
+    for (i = index; i < arrayLength - 1; i++) array[i] = array[i + 1];
+}
+
 int main(int argc, const char * argv[]) {
-   int wordsTotal = 0;
+    int i, intArray[5], intArrayLength = 0, stringArrayLength = 0;
+    char * stringArray[5];
 
-    int fileDescriptor = openFile("words.txt");
-    char ** wordsList = readFile(fileDescriptor, &wordsTotal);
-    close(fileDescriptor);
+    intArray[intArrayLength++] = 1;
+    intArray[intArrayLength++] = 2;
+    intArray[intArrayLength++] = 3;
+    intArray[intArrayLength++] = 4;
+    intArray[intArrayLength++] = 5;
 
-    srand((unsigned int) time(NULL));
-    char * selectedWord = wordsList[randomNumber(0, wordsTotal)];
+    stringArray[stringArrayLength++] = "premier";
+    stringArray[stringArrayLength++] = "deuxième";
+    stringArray[stringArrayLength++] = "troisième";
+    stringArray[stringArrayLength++] = "quatrième";
+    stringArray[stringArrayLength++] = "cinquième";
 
-    runGame(selectedWord);
+    printf("\n\n\nPREMIER AFFICHAGE\n\n\n");
 
-    return 0;
+    for (i = 0; i < intArrayLength; i++)
+        printf("int : %d\n", intArray[i]);
+
+    for (i = 0; i < stringArrayLength; i++)
+        printf("str : %s\n", stringArray[i]);
+
+    printf("\n\n\nUTILISATION DES FONCTIONS DE DECOUPE\n\n\n");
+
+    removeInteger(intArray, 2, intArrayLength--);
+    removeString(stringArray, 2, stringArrayLength--);
+
+    printf("\n\n\nSECOND AFFICHAGE\n\n\n");
+
+    for (i = 0; i < intArrayLength; i++)
+        printf("int : %d\n", intArray[i]);
+
+    for (i = 0; i < stringArrayLength; i++)
+        printf("str : %s\n", stringArray[i]);
 }

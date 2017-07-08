@@ -1,6 +1,7 @@
-# Object files
 *.o
 *.out
+/client
+/server
 /.idea/*
 .DS_Store
 CMakeLists.txt

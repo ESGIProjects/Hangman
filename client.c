@@ -15,8 +15,7 @@ int main (int argc, const char * argv[]) {
     listenFileDescriptor = socket(AF_INET, SOCK_STREAM, 0);
 
     // Connexion au serveur
-    connectServer(listenFileDescriptor, "127.0.0.1", 7779);
-
+    connectServer(listenFileDescriptor, "127.0.0.1", PORT);
 
     maxSocket = listenFileDescriptor + 1;
 
@@ -42,7 +41,7 @@ int main (int argc, const char * argv[]) {
             } else if (state == '1') {
                 printf("Good guess!\n");
             } else if (state == '2') {
-                printf("You lost! The word was ()\n");
+                printf("You lost! The word was (TO BE COMPLETED)\n", word);
             } else if (state == '3') {
                 printf("You won, good job!\n");
             } else if (state == '4') {

@@ -45,3 +45,13 @@ void deleteIntegerFromArray(int ** sockets, int * socketsCount, int splitPositio
     *sockets = (int *) realloc(*sockets, (*socketsCount - 1) * sizeof(int));
     (*socketsCount)--;
 }
+
+void removeInteger(int *array, int index, int arrayLength) {
+    int i;
+    for (i = index; i < arrayLength - 1; i++) array[i] = array[i + 1];
+}
+
+void removeString(char **array, int index, int arrayLength) {
+    int i;
+    for (i = index; i < arrayLength - 1; i++) array[i] = array[i + 1];
+}
