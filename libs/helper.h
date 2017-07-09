@@ -8,6 +8,9 @@ typedef struct threadArgs {
     pthread_t thread;
     int * sockets;
     int socketsCount;
+
+    // Variables relatives au jeu
+
     char * selectedWords[5], * dashedWords[5];
     int availableTries[5];
 

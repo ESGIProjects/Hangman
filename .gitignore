@@ -6,3 +6,4 @@
 .DS_Store
 CMakeLists.txt
 /cmake-build-debug/*
+*.dSYM
