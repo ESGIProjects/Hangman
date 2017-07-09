@@ -36,7 +36,13 @@ int main (int argc, const char * argv[]) {
 
         if (FD_ISSET(listenFileDescriptor, &readFS)) {
             // Réponse du serveur
-            read(listenFileDescriptor, readBuffer, sizeof(readBuffer));
+            ssize_t readValue = read(listenFileDescriptor, readBuffer, sizeof(readBuffer));
+
+            if (readValue == 0) {
+                printf("\n\nSorry, the server isn't responding anymore. You can retry later!\n\n");
+                close(listenFileDescriptor);
+                exit(0);
+            }
 
             // Récupération de l'état de jeu
             state = readBuffer[0];

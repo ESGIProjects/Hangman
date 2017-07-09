@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include "libs/hangman.h"
 #include "libs/helper.h"
@@ -121,10 +122,13 @@ void * gameThread(void * args) {
         }
     }
 }
-
+void closeFromUser(int);
 int main(int argc, const char * argv[]) {
 
     int i = 0;
+
+    // Permet la fermeture propre si la partie n'est pas terminée
+    signal(SIGINT, closeFromUser);
 
     // Variables relatives à la récupération des mots
     int wordsTotal = 0, wordsFileDescriptor;
@@ -252,8 +256,22 @@ int main(int argc, const char * argv[]) {
         }
     }
 
-    close(listenFileDescriptor); // à passer en signal via ctrl-c
-
     return 0;
+}
 
+void closeFromUser(int signal) {
+    printf("\n\n\n\n");
+    int i, j;
+    for (i = 0; i < threadsCount; i++) {
+        printf("Cancelling thread %d...\n", i);
+        pthread_cancel(threads[i]->thread);
+
+        for (j = 0; j < threads[i]->socketsCount; j++) {
+            printf("\tClosing socket %d (thread %d)...\n", j, i);
+            close(threads[i]->sockets[j]);
+        }
+    }
+
+    printf("Exiting program!\n");
+    exit(0);
 }
