@@ -2,7 +2,7 @@
 // Created by Jason Pierna on 13/04/2017.
 //
 
-#define PORT 7770
+#define PORT 7773
 
 typedef struct threadArgs {
     pthread_t thread;

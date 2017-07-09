@@ -76,10 +76,10 @@ void * gameThread(void * args) {
 
                 if (replacedLetters == 0) {
                     // Wrong guess
+                    (*thread).availableTries[i]--;
                     if ((*thread).availableTries[i] > 0) {
                         // Wrong guess but not over
                         strcpy(writeBuffer, "0");
-                        (*thread).availableTries[i]--;
                     } else {
                         // Game over
                         strcpy(writeBuffer, "2");
@@ -191,25 +191,29 @@ int main(int argc, const char * argv[]) {
         }
 
         socketsCount++;
-//
-//            for (i = 0; i < threadsCount; i++) {
-//                if (threads[i]->socketsCount < MAX_SOCKETS_PER_THREAD) {
-//                    printf("adding to thread %d\n", i);
-//                    thread = threads[i];
-//                    isCreating = 0;
-//                }
-//            }
-//
-//            if (thread == NULL) {
-//                thread = malloc(sizeof(threadArgs));
-//                printf("creating thread %d\n", threadsCount);
-//                isCreating = 1;
-//                thread->sockets = (int*) malloc(MAX_SOCKETS_PER_THREAD * sizeof(int));
-//                thread->socketsCount = 0;
-//                pthread_mutex_init(&thread->mutex, NULL);
-//                pthread_cond_init(&thread->condition, NULL);
-//            }
 
+//        // On récupère un thread existant si l'on peut
+//        for (i = 0; i < threadsCount; i++) {
+//            if (threads[i]->socketsCount < MAX_SOCKETS_PER_THREAD) {
+//                printf("- Adding socket to thread no. %d -\n", i);
+//                thread = threads[i];
+//                isCreating = 0;
+//                break;
+//            }
+//        }
+//
+//        // Sinon, création d'un nouveau thread
+//        if (thread == NULL) {
+//            printf("- Creating thread no. %d -\n", threadsCount);
+//            threads[threadsCount] = malloc(sizeof(threadArgs));
+//
+//            thread = threads[threadsCount];
+//            thread->sockets = (int*) malloc(MAX_SOCKETS_PER_THREAD * sizeof(int));
+//            thread->socketsCount = 0;
+//            pthread_mutex_init(&thread->mutex, NULL);
+//            pthread_cond_init(&thread->condition, NULL);
+//            isCreating = 1;
+//        }
 
         maxSocket = connectFileDescriptor + 1;
 
