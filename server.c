@@ -19,110 +19,9 @@
 int maxSocket, threadsCount = 0;
 threadArgs * threads[MAX_THREADS];
 
-void * gameThread(void * args) {
-    threadArgs * thread = threads[(int)args];
-
-    char readBuffer[100], writeBuffer[100];
-
-    int i;
-    fd_set readFS;
-
-    while(1) {
-
-        pthread_mutex_lock(&(*thread).mutex);
-        if ((*thread).socketsCount <= 0) {
-            printf("start wait\n");
-            pthread_cond_wait(&(*thread).condition, &(*thread).mutex);
-            printf("stop wait\n");
-        }
-        pthread_mutex_unlock(&(*thread).mutex);
-
-        // Mise en place de l'écoute concurrente
-        FD_ZERO(&readFS);
-        for (i = 0; i < (*thread).socketsCount; i++) {
-            FD_SET((*thread).sockets[i], &readFS);
-        }
-
-        struct timeval tv = {1, 0};
-        select(maxSocket, &readFS, NULL, NULL, &tv);
-
-        for (i = 0; i < (*thread).socketsCount; i++) {
-            if (FD_ISSET((*thread).sockets[i], &readFS)) {
-
-                // Réception
-                ssize_t readValue = read((*thread).sockets[i], readBuffer, sizeof(readBuffer));
-
-                if (readValue == 0) {
-                    printf("Socket closed by client\n");
-                    close((*thread).sockets[i]);
-                    removeInteger((*thread).sockets, i, (*thread).socketsCount);
-                    removeInteger((*thread).availableTries, i, (*thread).socketsCount);
-                    removeString((*thread).selectedWords, i, (*thread).socketsCount);
-                    removeString((*thread).dashedWords, i, (*thread).socketsCount);
-
-                    (*thread).socketsCount--;
-
-                    continue;
-                }
-
-                // On conserve seulement le premier caractère
-                char letterTyped = readBuffer[0];
-                int replacedLetters = checkAnswer(letterTyped, (*thread).selectedWords[i], (*thread).dashedWords[i]);
-
-                // 0 False answer
-                // 1 Good answer
-                // 2 Game Over (lost)
-                // 3 Game Over (won)
-                // 4 Start Game
-
-                if (replacedLetters == 0) {
-                    // Wrong guess
-                    (*thread).availableTries[i]--;
-                    if ((*thread).availableTries[i] > 0) {
-                        // Wrong guess but not over
-                        strcpy(writeBuffer, "0");
-                    } else {
-                        // Game over
-                        strcpy(writeBuffer, "2");
-                    }
-                } else {
-                    // Good guess
-                    if (strcmp((*thread).dashedWords[i], (*thread).selectedWords[i]) == 0) {
-                        // Player won
-                        strcpy(writeBuffer, "3");
-                    } else {
-                        // Good guess but not over
-                        strcpy(writeBuffer, "1");
-                    }
-                }
-
-                // Ajout du mot au buffer
-                if (writeBuffer[0] == '2')
-                    strcat(writeBuffer, (*thread).selectedWords[i]); // Si perdu, on envoie le mot complet
-                else
-                    strcat(writeBuffer, (*thread).dashedWords[i]);
-
-                // Réponse au client
-                printf("%s\n", writeBuffer);
-                write((*thread).sockets[i], writeBuffer, sizeof(writeBuffer));
-
-                // On vérifie si le jeu est terminé
-                if (writeBuffer[0] == '2' || writeBuffer[0] == '3') {
-                    printf("Socket closed (game over)\n");
-                    close((*thread).sockets[i]);
-
-                    removeInteger((*thread).sockets, i, (*thread).socketsCount);
-                    removeInteger((*thread).availableTries, i, (*thread).socketsCount);
-                    removeString((*thread).selectedWords, i, (*thread).socketsCount);
-                    removeString((*thread).dashedWords, i, (*thread).socketsCount);
-
-                    (*thread).socketsCount--;
-                }
-            }
-        }
-    }
-}
 void closeFromUser(int);
+void * gameThread(void *);
+
 int main(int argc, const char * argv[]) {
 
     int i = 0;
@@ -259,6 +158,110 @@ int main(int argc, const char * argv[]) {
     return 0;
 }
 
+void * gameThread(void * args) {
+    threadArgs * thread = threads[(int)args];
+
+    char readBuffer[100], writeBuffer[100];
+
+    int i;
+    fd_set readFS;
+
+    while(1) {
+
+        pthread_mutex_lock(&(*thread).mutex);
+        if ((*thread).socketsCount <= 0) {
+            printf("start wait\n");
+            pthread_cond_wait(&(*thread).condition, &(*thread).mutex);
+            printf("stop wait\n");
+        }
+        pthread_mutex_unlock(&(*thread).mutex);
+
+        // Mise en place de l'écoute concurrente
+        FD_ZERO(&readFS);
+        for (i = 0; i < (*thread).socketsCount; i++) {
+            FD_SET((*thread).sockets[i], &readFS);
+        }
+
+        struct timeval tv = {1, 0};
+        select(maxSocket, &readFS, NULL, NULL, &tv);
+
+        for (i = 0; i < (*thread).socketsCount; i++) {
+            if (FD_ISSET((*thread).sockets[i], &readFS)) {
+
+                // Réception
+                ssize_t readValue = read((*thread).sockets[i], readBuffer, sizeof(readBuffer));
+
+                if (readValue == 0) {
+                    printf("Socket closed by client\n");
+                    close((*thread).sockets[i]);
+                    removeInteger((*thread).sockets, i, (*thread).socketsCount);
+                    removeInteger((*thread).availableTries, i, (*thread).socketsCount);
+                    removeString((*thread).selectedWords, i, (*thread).socketsCount);
+                    removeString((*thread).dashedWords, i, (*thread).socketsCount);
+
+                    (*thread).socketsCount--;
+
+                    continue;
+                }
+
+                // On conserve seulement le premier caractère
+                char letterTyped = readBuffer[0];
+                int replacedLetters = checkAnswer(letterTyped, (*thread).selectedWords[i], (*thread).dashedWords[i]);
+
+                // 0 False answer
+                // 1 Good answer
+                // 2 Game Over (lost)
+                // 3 Game Over (won)
+                // 4 Start Game
+
+                if (replacedLetters == 0) {
+                    // Wrong guess
+                    (*thread).availableTries[i]--;
+                    if ((*thread).availableTries[i] > 0) {
+                        // Wrong guess but not over
+                        strcpy(writeBuffer, "0");
+                    } else {
+                        // Game over
+                        strcpy(writeBuffer, "2");
+                    }
+                } else {
+                    // Good guess
+                    if (strcmp((*thread).dashedWords[i], (*thread).selectedWords[i]) == 0) {
+                        // Player won
+                        strcpy(writeBuffer, "3");
+                    } else {
+                        // Good guess but not over
+                        strcpy(writeBuffer, "1");
+                    }
+                }
+
+                // Ajout du mot au buffer
+                if (writeBuffer[0] == '2')
+                    strcat(writeBuffer, (*thread).selectedWords[i]); // Si perdu, on envoie le mot complet
+                else
+                    strcat(writeBuffer, (*thread).dashedWords[i]);
+
+                // Réponse au client
+                printf("%s\n", writeBuffer);
+                write((*thread).sockets[i], writeBuffer, sizeof(writeBuffer));
+
+                // On vérifie si le jeu est terminé
+                if (writeBuffer[0] == '2' || writeBuffer[0] == '3') {
+                    printf("Socket closed (game over)\n");
+                    close((*thread).sockets[i]);
+
+                    removeInteger((*thread).sockets, i, (*thread).socketsCount);
+                    removeInteger((*thread).availableTries, i, (*thread).socketsCount);
+                    removeString((*thread).selectedWords, i, (*thread).socketsCount);
+                    removeString((*thread).dashedWords, i, (*thread).socketsCount);
+
+                    (*thread).socketsCount--;
+                }
+            }
+        }
+    }
+}
+
 void closeFromUser(int signal) {
     printf("\n\n\n\n");
     int i, j;
@@ -272,6 +275,5 @@ void closeFromUser(int signal) {
         }
     }
 
-    printf("Exiting program!\n");
     exit(0);
 }

@@ -7,7 +7,6 @@
 #include "libs/helper.h"
 
 int listenFileDescriptor;
-
 void closeFromUser(int);
 
 int main (int argc, const char * argv[]) {
