@@ -15,16 +15,15 @@
 #define MAX_SOCKETS_PER_THREAD 5
 #define MAX_THREADS 10
 
-typedef struct {
-    pthread_t thread;
-    int * sockets;
-    int socketsCount;
-    char * selectedWords[5], * dashedWords[5];
-    int availableTries[5];
-} threadArgs;
+int maxSocket;
+threadArgs * threads[MAX_THREADS];
 
 void * gameThread(void * args) {
-    threadArgs * thread = (threadArgs *) args;
+    threadArgs * thread = threads[(int)args];
+
+//    printf("Thread address (in thread) : %p\n", thread);
+//    printf("SocketsCount value (in thread) : %d\n", (*thread)->socketsCount);
+
     char readBuffer[100], writeBuffer[100];
 
     int i;
@@ -32,37 +31,49 @@ void * gameThread(void * args) {
 
     while(1) {
 
+        // test avec mutex/cond
+        //printf("SOCKETS COUNT FROM WHILE START : %d\n", (*thread)->socketsCount);
+
+        pthread_mutex_lock(&(*thread).mutex);
+        if ((*thread).socketsCount <= 0) {
+            printf("start wait\n");
+            pthread_cond_wait(&(*thread).condition, &(*thread).mutex);
+            printf("stop wait\n");
+        }
+        pthread_mutex_unlock(&(*thread).mutex);
+
         // Mise en place de l'écoute concurrente
         FD_ZERO(&readFS);
-        for (i = 0; i < thread->socketsCount; i++) {
-            FD_SET(thread->sockets[i], &readFS);
+        for (i = 0; i < (*thread).socketsCount; i++) {
+            FD_SET((*thread).sockets[i], &readFS);
         }
 
-        int maxSocket = thread->sockets[thread->socketsCount-1] + 1;
+        //int maxSocket = (*thread)->sockets[(*thread)->socketsCount-1] + 1;
 
-        select(maxSocket, &readFS, NULL, NULL, NULL);
+        struct timeval tv = {1, 0};
+        select(maxSocket, &readFS, NULL, NULL, &tv);
 
-        for (i = 0; i < thread->socketsCount; i++) {
-            if (FD_ISSET(thread->sockets[i], &readFS)) {
+        for (i = 0; i < (*thread).socketsCount; i++) {
+            if (FD_ISSET((*thread).sockets[i], &readFS)) {
                 // Réception
-                ssize_t readValue = read(thread->sockets[i], readBuffer, sizeof(readBuffer));
+                ssize_t readValue = read((*thread).sockets[i], readBuffer, sizeof(readBuffer));
 
                 if (readValue == 0) {
                     printf("Socket closed by client\n");
-                    close(thread->sockets[i]);
-                    removeInteger(thread->sockets, i, thread->socketsCount);
-                    removeInteger(thread->availableTries, i, thread->socketsCount);
-                    removeString(thread->selectedWords, i, thread->socketsCount);
-                    removeString(thread->dashedWords, i, thread->socketsCount);
+                    close((*thread).sockets[i]);
+                    removeInteger((*thread).sockets, i, (*thread).socketsCount);
+                    removeInteger((*thread).availableTries, i, (*thread).socketsCount);
+                    removeString((*thread).selectedWords, i, (*thread).socketsCount);
+                    removeString((*thread).dashedWords, i, (*thread).socketsCount);
 
-                    thread->socketsCount--;
+                    (*thread).socketsCount--;
 
                     continue;
                 }
 
                 // On conserve seulement le premier caractère
                 char letterTyped = readBuffer[0];
-                int replacedLetters = checkAnswer(letterTyped, thread->selectedWords[i], thread->dashedWords[i]);
+                int replacedLetters = checkAnswer(letterTyped, (*thread).selectedWords[i], (*thread).dashedWords[i]);
 
                 // 0 False answer
                 // 1 Good answer
@@ -72,17 +83,17 @@ void * gameThread(void * args) {
 
                 if (replacedLetters == 0) {
                     // Wrong guess
-                    if (thread->availableTries[i] > 0) {
+                    if ((*thread).availableTries[i] > 0) {
                         // Wrong guess but not over
                         strcpy(writeBuffer, "0");
-                        thread->availableTries[i]--;
+                        (*thread).availableTries[i]--;
                     } else {
                         // Game over
                         strcpy(writeBuffer, "2");
                     }
                 } else {
                     // Good guess
-                    if (strcmp(thread->dashedWords[i], thread->selectedWords[i]) == 0) {
+                    if (strcmp((*thread).dashedWords[i], (*thread).selectedWords[i]) == 0) {
                         // Player won
                         strcpy(writeBuffer, "3");
                     } else {
@@ -92,23 +103,23 @@ void * gameThread(void * args) {
                 }
 
                 // Ajout du mot au buffer
-                strcat(writeBuffer, thread->dashedWords[i]);
+                strcat(writeBuffer, (*thread).dashedWords[i]);
 
                 // Réponse au client
                 printf("%s\n", writeBuffer);
-                write(thread->sockets[i], writeBuffer, sizeof(writeBuffer));
+                write((*thread).sockets[i], writeBuffer, sizeof(writeBuffer));
 
                 // On vérifie si le jeu est terminé
                 if (writeBuffer[0] == '2' || writeBuffer[0] == '3') {
-                    printf("CLOSE\n");
-                    close(thread->sockets[i]);
+                    printf("Socket closed (game over)\n");
+                    close((*thread).sockets[i]);
 
-                    removeInteger(thread->sockets, i, thread->socketsCount);
-                    removeInteger(thread->availableTries, i, thread->socketsCount);
-                    removeString(thread->selectedWords, i, thread->socketsCount);
-                    removeString(thread->dashedWords, i, thread->socketsCount);
+                    removeInteger((*thread).sockets, i, (*thread).socketsCount);
+                    removeInteger((*thread).availableTries, i, (*thread).socketsCount);
+                    removeString((*thread).selectedWords, i, (*thread).socketsCount);
+                    removeString((*thread).dashedWords, i, (*thread).socketsCount);
 
-                    thread->socketsCount--;
+                    (*thread).socketsCount--;
                 }
             }
         }
@@ -119,8 +130,8 @@ int main(int argc, const char * argv[]) {
 
     int i = 0;
 
-    threadArgs * threads;
-    threads = (threadArgs *) malloc(MAX_THREADS * sizeof(threadArgs));
+    //threadArgs ** threads;
+    //threads = (threadArgs **) malloc(MAX_THREADS * sizeof(threadArgs *));
     int threadsCount = 0;
 
     // Variables relatives à la récupération des mots
@@ -133,7 +144,8 @@ int main(int argc, const char * argv[]) {
     struct sockaddr_in serverInfo;
 
     // Variables relatives à la concurrence du serveur
-    int maxSocket, * sockets, socketsCount;
+//    int maxSocket, * sockets, socketsCount;
+    int * sockets, socketsCount = 0;
     fd_set readFS;
 
     // Variables relatives au jeu
@@ -169,145 +181,132 @@ int main(int argc, const char * argv[]) {
     // Concurrence
 
     maxSocket = listenFileDescriptor + 1;
-    socketsCount = 1;
-    sockets = (int*) malloc(10 * sizeof(int));
-    sockets[0] = listenFileDescriptor;
+//    socketsCount = 1;
+//    sockets = (int*) malloc(10 * sizeof(int));
+//    sockets[0] = listenFileDescriptor;
 
-    while (1) {
+    threadArgs * thr1 = NULL;
+    threadArgs * thr2 = NULL;
+
+    while ((connectFileDescriptor = acceptConnection(listenFileDescriptor))) {
+
+        // Suppression des threads terminés
+//        for (i = 0; i < threadsCount; i++) {
+//            if (threads[i].socketsCount == 0) {
+//                pthread_cancel(threads[i].thread);
+//                removeThreads(threads, i, threadsCount--);
+//            }
+//        }
 
         // Mise en place de l'écoute concurrente
-        FD_ZERO(&readFS);
-        //for (i = 0; i < socketsCount; i++) {
-            FD_SET(listenFileDescriptor, &readFS);
-        //}
-
-        select(maxSocket, &readFS, NULL, NULL, NULL);
+//        FD_ZERO(&readFS);
+//        for (i = 0; i < socketsCount; i++) {
+//            FD_SET(listenFileDescriptor, &readFS);
+//        }
+//
+//        select(maxSocket, &readFS, NULL, NULL, NULL);
 
         // Nouvelle connexion
-        if (FD_ISSET(listenFileDescriptor, &readFS)) {
+//        if (FD_ISSET(listenFileDescriptor, &readFS)) {
             // Connexion acceptée et ajoutée aux autres
 
             printf("NEW CONNECTION !!!! \n");
 
             // 1. Sélection d'un thread
-            threadArgs *thread = NULL;
-            int isCreating;
+            threadArgs * thread = NULL;
+            int isCreating = 0;
+
+            if (socketsCount % MAX_SOCKETS_PER_THREAD == 0) {
+                // Création
+                printf("creating thread %d\n", threadsCount);
+                threads[threadsCount] = malloc(sizeof(threadArgs));
+
+                thread = threads[threadsCount];
+                thread->sockets = (int*) malloc(MAX_SOCKETS_PER_THREAD * sizeof(int));
+                thread->socketsCount = 0;
+                pthread_mutex_init(&thread->mutex, NULL);
+                pthread_cond_init(&thread->condition, NULL);
+                isCreating = 1;
+            } else {
+                // Assignement du dernier
+                printf("adding to thread %d\n", threadsCount-1);
+                thread = threads[threadsCount-1];
+                isCreating = 0;
+            }
+
+            socketsCount++;
+//
+//            for (i = 0; i < threadsCount; i++) {
+//                if (threads[i]->socketsCount < MAX_SOCKETS_PER_THREAD) {
+//                    printf("adding to thread %d\n", i);
+//                    thread = threads[i];
+//                    isCreating = 0;
+//                }
+//            }
+//
+//            if (thread == NULL) {
+//                thread = malloc(sizeof(threadArgs));
+//                printf("creating thread %d\n", threadsCount);
+//                isCreating = 1;
+//                thread->sockets = (int*) malloc(MAX_SOCKETS_PER_THREAD * sizeof(int));
+//                thread->socketsCount = 0;
+//                pthread_mutex_init(&thread->mutex, NULL);
+//                pthread_cond_init(&thread->condition, NULL);
+//            }
+
+
+
+        //connectFileDescriptor = acceptConnection(listenFileDescriptor);
+            maxSocket = connectFileDescriptor + 1;
+
+
+           /* incomingSocket = malloc(1);
+            * incomingSocket = listenFileDescriptor; */
+
+            printf("socketsCount ==== %d\n", thread->socketsCount);
+            thread->sockets[thread->socketsCount] = connectFileDescriptor;
+
+            //sockets = (int *) realloc(sockets, (socketsCount+1) * sizeof(int));
+            //sockets[socketsCount] = connectFileDescriptor;
+
+            printf("after segfault11\n");
+
+            // Mise en place de la partie
+            int random = randomNumber(0, wordsTotal);
+            thread->selectedWords[thread->socketsCount] = wordsList[random];
+            printf("random number : %d\n", random);
+            thread->dashedWords[thread->socketsCount] = getDashedWord(thread->selectedWords[thread->socketsCount]);
+            thread->availableTries[thread->socketsCount] = 10;
+
+            // On envoie le mot caché au client
+            strcpy(writeBuffer, "4");
+            strcat(writeBuffer, thread->dashedWords[thread->socketsCount]);
+            write(connectFileDescriptor, writeBuffer, sizeof(writeBuffer));
+
+            // On incrémente enfin le nombre de connexions conservées
+            thread->socketsCount++;
+
+            pthread_mutex_lock(&thread->mutex);
+            if (thread->socketsCount == 1 && isCreating == 0)
+                pthread_cond_signal(&thread->condition);
+            pthread_mutex_unlock(&thread->mutex);
+
+//            printf("Thread address (in main) : %p\n", &thread);
+//            printf("SocketsCount value (in main) : %d\n", thread->socketsCount);
+
+            if (isCreating == 1) {
+               // if (threadsCount == 0)
+//                    pthread_create(&(thread->thread), NULL, gameThread, (void *) &thread);
+                    pthread_create(&(thread->thread), NULL, gameThread, (void *) threadsCount++);
+                //threads[threadsCount++] = thread;
+//                threadsCount++;
+            }
 
             for (i = 0; i < threadsCount; i++) {
-                if (threads[i].socketsCount < MAX_SOCKETS_PER_THREAD) {
-                    printf("adding to thread %d\n", i);
-//                    thread = &(threads[i]);
-                    isCreating = 0;
-                }
-            }
-//
-            if (thread == NULL) {
-                thread = malloc(sizeof(threadArgs));
-                printf("creating thread %d\n", threadsCount);
-                isCreating = 1;
-                (*thread).sockets = (int*) malloc(MAX_SOCKETS_PER_THREAD * sizeof(int));
-                (*thread).socketsCount = 0;
-            }
-//
-            connectFileDescriptor = acceptConnection(listenFileDescriptor);
-            maxSocket = connectFileDescriptor + 1;
-//
-//            //threadArgs *thread;
-//
-            (*thread).sockets[(*thread).socketsCount] = connectFileDescriptor;
-//
-//
-//            //sockets = (int *) realloc(sockets, (socketsCount+1) * sizeof(int));
-//            //sockets[socketsCount] = connectFileDescriptor;
-//
-//            // Mise en place de la partie
-            int random = randomNumber(0, wordsTotal);
-            (*thread).selectedWords[(*thread).socketsCount] = wordsList[random];
-            printf("random number : %d\n", random);
-            (*thread).dashedWords[(*thread).socketsCount] = getDashedWord((*thread).selectedWords[(*thread).socketsCount]);
-            (*thread).availableTries[(*thread).socketsCount] = 10;
-//
-//            // On envoie le mot caché au client
-            strcpy(writeBuffer, "4");
-            strcat(writeBuffer, (*thread).dashedWords[(*thread).socketsCount]);
-            write(connectFileDescriptor, writeBuffer, sizeof(writeBuffer));
-//
-//            // On incrémente enfin le nombre de connexions conservées
-            (*thread).socketsCount++;
-//
-            if (isCreating == 1) {
-                printf("Starting new thread\n");
-                pthread_create(&((*thread).thread), NULL, gameThread, (void *) thread);
-//                pthread_join((*thread).thread, NULL); // NE MARCHE PLUS AVEC
-                threads[threadsCount++] = *thread;
+                printf("Thread %d addresses : %p\n", i, &(threads[i]->thread));
             }
 
-            // DEBUG : on affiche tous les threads
-            for (i = 0; i < threadsCount; i++)
-                printf("threads list %d\n", threads[i]);
-        }
 
-
-        // Client connu
-        /*for (i = 1; i < socketsCount; i++) {
-
-            // On récupère la connexion concernée
-            if (FD_ISSET(sockets[i], &readFS)) {
-
-                // Réception
-                read(sockets[i], readBuffer, sizeof(readBuffer));
-
-                // On conserve seulement le premier caractère
-                char letterTyped = readBuffer[0];
-                int replacedLetters = checkAnswer(letterTyped, selectedWords[i], dashedWords[i]);
-
-                // 0 False answer
-                // 1 Good answer
-                // 2 Game Over (lost)
-                // 3 Game Over (won)
-                // 4 Start Game
-
-                if (replacedLetters == 0) {
-                    // Wrong guess
-                    if (availableTries[i] > 0) {
-                        // Wrong guess but not over
-                        strcpy(writeBuffer, "0");
-                        availableTries[i]--;
-                    } else {
-                        // Game over
-                        strcpy(writeBuffer, "2");
-                    }
-                } else {
-                    // Good guess
-                    if (strcmp(dashedWords[i], selectedWords[i]) == 0) {
-                        // Player won
-                        strcpy(writeBuffer, "3");
-                    }
-                    else {
-                        // Good guess but not over
-                        strcpy(writeBuffer, "1");
-                    }
-                }
-
-                // Ajout du mot au buffer
-                strcat(writeBuffer, dashedWords[i]);
-
-                // Réponse au client
-                printf("%s\n", writeBuffer);
-                write(sockets[i], writeBuffer, sizeof(writeBuffer));
-
-                // On vérifie si le jeu est terminé
-                if (writeBuffer[0] == '2' || writeBuffer[0] == '3') {
-                    printf("CLOSE\n");
-                    close(sockets[i]);
-                    availableTries[i] = 10;
-                    selectedWords[i] = NULL;
-                    dashedWords[i] = NULL;
-
-                    deleteIntegerFromArray(&sockets, &socketsCount, i);
-                }
-            }
-        } */
     }
 
     close(listenFileDescriptor); // à passer en signal via ctrl-c

@@ -46,12 +46,17 @@ void deleteIntegerFromArray(int ** sockets, int * socketsCount, int splitPositio
     (*socketsCount)--;
 }
 
-void removeInteger(int *array, int index, int arrayLength) {
+void removeInteger(int * array, int index, int arrayLength) {
     int i;
     for (i = index; i < arrayLength - 1; i++) array[i] = array[i + 1];
 }
 
-void removeString(char **array, int index, int arrayLength) {
+void removeString(char ** array, int index, int arrayLength) {
+    int i;
+    for (i = index; i < arrayLength - 1; i++) array[i] = array[i + 1];
+}
+
+void removeThreads(threadArgs * array, int index, int arrayLength) {
     int i;
     for (i = index; i < arrayLength - 1; i++) array[i] = array[i + 1];
 }
