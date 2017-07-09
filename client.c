@@ -46,25 +46,26 @@ int main (int argc, const char * argv[]) {
 
             // Affichage de l'état
             if (state == '0') {
-                printf("Wrong answer!\n");
+                printf("\nWrong answer!\n");
             } else if (state == '1') {
-                printf("Good guess!\n");
+                printf("\nGood guess!\n");
             } else if (state == '2') {
-                printf("You lost! The word was \"%s\"\n", word);
+                printf("\nYou lost! The word was \"%s\"\nWanna try again? Relauch the game!\n\n", word);
             } else if (state == '3') {
-                printf("You won, good job!\n");
+                printf("\nYou won, good job!\n");
             } else if (state == '4') {
-                printf("Starting game... good luck!\n");
+                printf("\nStarting game... good luck!\n");
             }
 
             // Affichage des pointillés si le jeu n'est pas perdu
             if (state != '2')
-                printf("%s\n", word);
+                printf("The word is: %s\n\n", word);
 
             if (state == '2' || state == '3') {
                 close(listenFileDescriptor);
                 return 0;
             } else {
+                printf("Guess a new letter!\nYou must type a lowercased letter, or else it will be wrong.\n");
                 printf("Type something: ");
                 fgets(writeBuffer, sizeof(writeBuffer), stdin);
                 write(listenFileDescriptor, writeBuffer, sizeof(writeBuffer));
