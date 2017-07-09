@@ -96,7 +96,10 @@ void * gameThread(void * args) {
                 }
 
                 // Ajout du mot au buffer
-                strcat(writeBuffer, (*thread).dashedWords[i]);
+                if (writeBuffer[0] == '2')
+                    strcat(writeBuffer, (*thread).selectedWords[i]); // Si perdu, on envoie le mot complet
+                else
+                    strcat(writeBuffer, (*thread).dashedWords[i]);
 
                 // Réponse au client
                 printf("%s\n", writeBuffer);

@@ -50,15 +50,16 @@ int main (int argc, const char * argv[]) {
             } else if (state == '1') {
                 printf("Good guess!\n");
             } else if (state == '2') {
-                printf("You lost! The word was (TO BE COMPLETED)\n");
+                printf("You lost! The word was \"%s\"\n", word);
             } else if (state == '3') {
                 printf("You won, good job!\n");
             } else if (state == '4') {
                 printf("Starting game... good luck!\n");
             }
 
-            // Affichage des pointillés
-            printf("%s\n", word);
+            // Affichage des pointillés si le jeu n'est pas perdu
+            if (state != '2')
+                printf("%s\n", word);
 
             if (state == '2' || state == '3') {
                 close(listenFileDescriptor);
