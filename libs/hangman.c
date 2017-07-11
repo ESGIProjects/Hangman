@@ -27,7 +27,7 @@ char ** readFile(int fileDescriptor, int * wordsTotal) {
     ssize_t bytesRead;
 
     // Setting up pointers
-    char ** wordsList = malloc(10 * sizeof(char*));
+    char ** wordsList = malloc(20 * sizeof(char*));
     *wordsTotal = 0;
 
     // Reading inside file
