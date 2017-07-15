@@ -6,6 +6,11 @@
 #include <signal.h>
 #include "libs/helper.h"
 
+#define RED "\x1B[31m"
+#define BLUE "\x1B[34m"
+#define GREEN "\x1B[32m"
+#define RESET "\x1B[0m"
+
 int listenFileDescriptor;
 void closeFromUser(int);
 
@@ -38,7 +43,7 @@ int main (int argc, const char * argv[]) {
             ssize_t readValue = read(listenFileDescriptor, readBuffer, sizeof(readBuffer));
 
             if (readValue == 0) {
-                printf("\n\nSorry, the server isn't responding anymore. You can retry later!\n\n");
+                printf(RED "\n\nSorry, the server isn't responding anymore. You can retry later!\n\n" RESET);
                 close(listenFileDescriptor);
                 exit(0);
             }
@@ -51,15 +56,15 @@ int main (int argc, const char * argv[]) {
 
             // Affichage de l'état
             if (state == '0') {
-                printf("\nWrong answer!\n");
+                printf(RED "\nWrong answer!\n" RESET);
             } else if (state == '1') {
-                printf("\nGood guess!\n");
+                printf(GREEN "\nGood guess!\n" RESET);
             } else if (state == '2') {
-                printf("\nYou lost! The word was \"%s\"\nWanna try again? Relauch the game!\n\n", word);
+                printf(RED "\nYou lost! The word was \"%s\"\nWanna try again? Relauch the game!\n\n" RESET, word);
             } else if (state == '3') {
-                printf("\nYou won, good job!\n");
+                printf(GREEN "\nYou won, good job!\n" RESET);
             } else if (state == '4') {
-                printf("\nStarting game... good luck!\n");
+                printf(BLUE "\nStarting game... good luck!\n" RESET);
             }
 
             // Affichage des pointillés si le jeu n'est pas perdu
@@ -70,8 +75,8 @@ int main (int argc, const char * argv[]) {
                 close(listenFileDescriptor);
                 return 0;
             } else {
-                printf("Guess a new letter!\nYou must type a lowercased letter, or else it will be wrong.\n");
-                printf("Type something: ");
+                printf(BLUE "Guess a new letter!\nYou must type a lowercased letter, or else it will be wrong.\n");
+                printf("Type something: " RESET);
                 fgets(writeBuffer, sizeof(writeBuffer), stdin);
                 write(listenFileDescriptor, writeBuffer, sizeof(writeBuffer));
             }
